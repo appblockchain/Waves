@@ -76,16 +76,10 @@ class MinerAccountScriptRestrictionsTest extends PropSpec with WithDomain {
   private def createMiner(d: Domain): MinerImpl = {
     val wavesSettings = WavesSettings.default()
 
-    val blockchainSettings = {
-      val bs = wavesSettings.blockchainSettings
-      val fs = bs.functionalitySettings
-      bs.copy(functionalitySettings = fs.copy(blockVersion3AfterHeight = 0, preActivatedFeatures = Map(2.toShort -> 0)))
-    }
-
     new MinerImpl(
       new DefaultChannelGroup(GlobalEventExecutor.INSTANCE),
       d.blockchainUpdater,
-      wavesSettings.copy(blockchainSettings = blockchainSettings),
+      wavesSettings,
       ntpTime,
       new UtxPoolImpl(ntpTime, d.blockchainUpdater, wavesSettings.utxSettings),
       Wallet(WalletSettings(None, Some("123"), Some(ByteStr(minerAcc.seed)))),
