@@ -197,15 +197,9 @@ class RollbackSuite extends BaseFunSuite with TransferSending with TableDrivenPr
 
     nodes.waitForHeightAriseAndTxPresent(sender.signedBroadcast(transfer.json(), waitForTx = true).id)
 
-    //as rollback is too fast, we should blacklist nodes from each other before rollback
-    sender.blacklist(miner.networkAddress)
-    miner.blacklist(sender.networkAddress)
     nodes.rollback(height)
-    sender.connect(miner.networkAddress)
-    miner.connect(sender.networkAddress)
 
     nodes.waitForSameBlockHeadersAt(height)
-
     nodes.waitForHeightArise()
 
     assert(sender.findTransactionInfo(dtx).isDefined)
