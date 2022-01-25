@@ -254,7 +254,7 @@ class UtxPoolImpl(
     pack(TransactionDiffer(blockchain.lastBlockTimestamp, time.correctedTime()))(initialConstraint, strategy, cancelled)
   }
 
-  def cleanUnconfirmed(): Unit = {
+  def cleanUnconfirmed(verify: Boolean = true): Unit = {
     log.trace(s"Starting UTX cleanup at height ${blockchain.height}")
 
     this.transactions
@@ -264,7 +264,7 @@ class UtxPoolImpl(
         if (TxCheck.isExpired(tx)) {
           TxStateActions.removeExpired(tx)
         } else {
-          val differ = TransactionDiffer.limitedExecution(blockchain.lastBlockTimestamp, time.correctedTime())(priorityPool.compositeBlockchain, _)
+          val differ = TransactionDiffer.limitedExecution(blockchain.lastBlockTimestamp, time.correctedTime(), verify)(priorityPool.compositeBlockchain, _)
           val diffEi = differ(tx).resultE
           diffEi.left.foreach { error =>
             TxStateActions.removeInvalid(tx, error)
@@ -482,14 +482,15 @@ class UtxPoolImpl(
   private[this] object TxCleanup {
     private[this] val scheduled = AtomicBoolean(false)
 
-    def runCleanupAsync(): Unit = if (scheduled.compareAndSet(false, true)) {
-      cleanupLoop()
-    }
+    def runCleanupAsync(verify: Boolean = true): Unit =
+      if (scheduled.compareAndSet(false, true)) {
+        cleanupLoop(verify)
+      }
 
-    private def cleanupLoop(): Unit = cleanupScheduler.execute { () =>
+    private def cleanupLoop(verify: Boolean): Unit = cleanupScheduler.execute { () =>
       while (scheduled.compareAndSet(true, false)) {
         if (!transactions.isEmpty || priorityPool.priorityTransactions.nonEmpty) {
-          cleanUnconfirmed()
+          cleanUnconfirmed(verify)
         }
       }
     }
@@ -498,7 +499,7 @@ class UtxPoolImpl(
   /** DOES NOT verify transactions */
   def addAndCleanup(transactions: Iterable[Transaction]): Unit = {
     transactions.foreach(addTransaction(_, verify = false))
-    TxCleanup.runCleanupAsync()
+    TxCleanup.runCleanupAsync(false)
   }
 
   def runCleanup(): Unit = {
